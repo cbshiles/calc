@@ -2,11 +2,11 @@
 #include <iostream> //cout
 #include <fstream> //ifstream
 #include <sstream> //istringstream
-#include <string>
-#include <stdexcept>// std::invalid_argument
 #include <vector>
 #include <stdlib.h>
 #include <unordered_map>
+#include <string>
+#include <stdexcept>
 
 using namespace std;
 
@@ -195,6 +195,8 @@ int calc(istream* strm)
 {
     Base base; int i=0;
     Rand* r = chunk(strm, 0, &base);
+    if (r==0)    cout << "yes" << endl;
+    else     cout << "no" << endl;
     base.ready();
     i = base.val;
     delete strm;
@@ -230,6 +232,8 @@ int main()
     test(4 * 2 / 3 - 1 + 5 * 6 - 7 + - -4);
     test(6 - 7 - 8 - 9);
 
+    test(9);
+    
     testF("2 + 3 - /", 2);
     testF("2 + 3 -", 2);
     testF("2 & 7", 4); 
