@@ -4,56 +4,89 @@
 #include "op.hpp"
 #include "funk.hpp"
 
-istream* read_file(const char* fname){
+istream& read_file(const char* fname){
     ifstream* rFile = new ifstream;
     rFile->open(fname);
 
     if (! rFile->is_open())
 	ERR("Error opening file: " << fname);
 
-    return rFile;
+    return *rFile;
 }
 
-istream* read_string(const char* s)
+istream& read_string(const char* s)
 {
-    return new istringstream(string(s));
+    return *(new istringstream(string(s)));
 }
 
-Binop* chunk(istream* strm, int lvl, Rand* src){
+Binop* chunk(istream& strm, Binop* src){
     string str;
-    Rand *root=0;
+    Rand *root=0; //root of current level
     Monop *tip;
-    bool valid = 0;
-    
-    while (*strm >> str && !valid){
-	Uop* u = umap[str];
+    bool snd; //stream not done
+    Uop* u;
 
-	if(u)  { //Unary op
-	    Monop* mptr = new Monop(u);
-	    if (! root) root = tip = mptr;
-	    else {tip->load(mptr); tip = mptr;}
-	}
-	else { // "True" operand
-	    int v = stoi(str.c_str());
-	    if (!root) root = new Rand(v);
-	    else tip->load(new Rand(v));
-	    valid = 1; //Now expecting Binop
+    while ((snd = strm >> str) && (u = umap[str])){//Unary op
+	Monop* mptr = new Monop(u);
+	if (! root) root = tip = mptr;
+	else {tip->load(mptr); tip = mptr;}
+    }
+
+    if (snd) {//str still has unprocessed token, "True" operand
+	int v = stoi(str.c_str());
+	if (!root) root = new Rand(v);
+	else tip->load(new Rand(v));
+    }
+    else throw ParseErr("Expression missing operand.");    
+
+    if (!(strm >> str)) {src->load(root); return 0;} //Done, bubble up
+    else { //Look up binary operator
+	Bop *b = bmap[str];
+	
+	if (!b) throw ParseErr("Operator not identified: " + str);
+
+	if (src->lt(b)){//Making recursive call
+	    Binop *bp, *rmp = new Binop(b, root);
+	    while((bp = chunk(strm, rmp)) && src->lt(bp->op)){
+		bp->init(rmp);
+		rmp = bp;
+	    }
+
+	    src->load(rmp);
+	    return bp;
+	    
+	} else { //Returning
+	    src->load(root);
+	    return new Binop(b);
 	}
     }
-    if(! valid) throw ParseErr("Expression missing operand.");
-    else if (!(*strm >> str)) {src->load(root); return 0;} //Done, bubble up
-    else { }//Look up binary operator
 }
 
-int calc(istream* strm)
+int calc(istream& strm)
 {
     Base base;
-    if (chunk(strm, 0, &base))
+    if (chunk(strm, &base))
 	throw ParseErr("Top level chunk returning value");
     base.ready();
-    delete strm;
+    delete &strm;
     return base.val;
 }
+
+int testF(const char* expr, int ans)
+{
+    try {
+	int got = calc(read_string(expr));
+	if (got != ans){
+	    cout << "Problem: " << expr <<
+		" should equal " << ans << ", got " << got << endl;
+	} else {
+	    cout << "Check\n";
+	}
+    }
+    catch (exception& e) { cerr << expr << endl << e.what() << endl; }
+}
+
+#define test(ss) testF(#ss, ss)
 
 int main()
 {

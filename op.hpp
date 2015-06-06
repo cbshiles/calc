@@ -13,13 +13,8 @@ struct Bop {
     int lvl, ass;
     Bop(Bptr b, int l, int a):fn(b), lvl(l), ass(a){}
 
-    //This comparsion operator has not been tested
-    //There is no equality for operators, one is always > than the other
-    bool operator< (const Bop &oth) const
-    {return lvl < oth.lvl+oth.ass;}
-
-    bool operator> (const Bop &oth) const
-    {return ! (*this < oth);}
+    bool lt(Bop& oth)
+    {return lvl < oth.lvl + oth.ass;}
 };
 
 #include <unordered_map>
@@ -46,7 +41,6 @@ struct Rand {
     Rand():r(false){} //For all other operators
 
     virtual int ready() {return r;}
-    virtual void load(Rand* r){ERR("Attempting to load a non-operator operand.");}
 };
 
 struct Var : public Rand {
@@ -69,12 +63,6 @@ struct Monop : public Rand {
     virtual int ready();
 };
 
-struct Base : public Monop {
-    Base(): Monop(0){}
-
-    virtual int ready();
-};
-
 struct Binop : public Rand {
 //For rators with 2 operands
     Rand *slotA, *slotB;
@@ -89,6 +77,16 @@ struct Binop : public Rand {
     
     virtual void load(Rand *r)
     {slotB = r;}
+
+    virtual int ready();
+
+    bool lt(Bop* b)
+    {return op->lt(*b);}
+};
+
+
+struct Base : public Binop {
+    Base(): Binop(new Bop(0,0,0)){}
 
     virtual int ready();
 };
