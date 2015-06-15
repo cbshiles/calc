@@ -19,6 +19,8 @@ istream& read_string(const char* s)
     return *(new istringstream(string(s)));
 }
 
+Base* rcalc(istream& strm);
+
 Binop* chunk(istream& strm, Binop* src){
     string str;
     Rand *root=0; //root of current level
@@ -33,13 +35,19 @@ Binop* chunk(istream& strm, Binop* src){
     }
 
     if (snd) {//str still has unprocessed token, "True" operand
-	int v = stoi(str.c_str());
-	if (!root) root = new Rand(v);
-	else tip->load(new Rand(v));
+	Rand* operand;
+	if (str.compare("(") == 0) operand = rcalc(strm);
+	else {
+	    int v = stoi(str.c_str());
+	    operand = new Rand(v);
+	}
+	
+	if (!root) root = operand;
+	else tip->load(operand);
     }
     else throw ParseErr("Expression missing operand.");    
 
-    if (!(strm >> str)) {src->load(root); return 0;} //Done, bubble up
+    if (!(strm >> str) || str.compare(")") == 0) {src->load(root); return 0;} //Done, bubble up
     else { //Look up binary operator
 	Bop *b = bmap[str];
 	
@@ -62,14 +70,26 @@ Binop* chunk(istream& strm, Binop* src){
     }
 }
 
+Base* rcalc(istream& strm)
+{
+    Base* b = new Base;
+
+    if (chunk(strm, b))
+	throw ParseErr("Top level chunk returning value");
+
+    return b;
+}
+
 int calc(istream& strm)
 {
-    Base base;
-    if (chunk(strm, &base))
-	throw ParseErr("Top level chunk returning value");
-    base.ready();
+    Base* base = rcalc(strm);
+
+    if (! strm.eof())
+	throw ParseErr("Entire expression was not read, probably due to an unmatched right paren ))");
+    
+    base->ready();
     delete &strm;
-    return base.val;
+    return base->val;
 }
 
 int testF(const char* expr, int ans)
@@ -78,7 +98,7 @@ int testF(const char* expr, int ans)
 	int got = calc(read_string(expr));
 	if (got != ans){
 	    cout << "Problem: " << expr <<
-		" should equal " << ans << ", got " << got << endl;
+		" C says " << ans << ", we say " << got << endl;
 	} else {
 	    cout << "Check\n";
 	}
@@ -102,9 +122,17 @@ int main()
     test(6 - 7 - 8 - 9);
 
     test(9);
+
+    test( ( 2 ) + ( 2 ) );
+
+    test( 2 * ( 8 + 5 * 6 + 2 ) + 3 + ( - - 4 * 2 ) );
+    testF("2 + ( 3 - 4", 2 + ( 3 - 4 ));
     
+    /* ERRORS */
     testF("2 + 3 - /", 2);
     testF("2 + 3 -", 2);
     testF("2 & 7", 4); 
+    testF("2 + 7 ) + 4", 1);
+
 //    is = read_file("source.txt");
 }
